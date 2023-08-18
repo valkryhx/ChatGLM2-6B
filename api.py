@@ -1,7 +1,10 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from transformers import AutoTokenizer, AutoModel
 import uvicorn, json, datetime
 import torch
+import nest_asyncio
+from pyngrok import ngrok
 
 DEVICE = "cuda"
 DEVICE_ID = "0"
@@ -17,6 +20,14 @@ def torch_gc():
 
 app = FastAPI()
 
+# middlewares
+app.add_middleware(
+    CORSMiddleware, # https://fastapi.tiangolo.com/tutorial/cors/
+    allow_origins=['*'], # wildcard to allow all, more here - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+    allow_credentials=True, # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
+    allow_methods=['*'], # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
+    allow_headers=['*'], # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+)
 
 @app.post("/")
 async def create_item(request: Request):
@@ -57,4 +68,14 @@ if __name__ == '__main__':
     # tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
     # model = load_model_on_gpus(model_path, num_gpus=2)
     model.eval()
-    uvicorn.run(app, host='0.0.0.0', port=8000, workers=1)
+
+    # specify a port
+    port = 8000
+    ngrok_tunnel = ngrok.connect(port)
+
+    # where we can visit our fastAPI app
+    print('Public URL:', ngrok_tunnel.public_url)
+
+
+    nest_asyncio.apply()
+    uvicorn.run(app, host='0.0.0.0', port=port, workers=1)
